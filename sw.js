@@ -1,4 +1,4 @@
-const CACHE='sarevi-v7';
+const CACHE='sarevi-v8';
 
 const ASSETS=['./','./index.html','./manifest.json','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png'];
 

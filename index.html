@@ -161,7 +161,7 @@
   async function loadProduction(){
     try{
       const {data,error}=await supabaseClient
-        .from('produccion')
+        .from('Producción')
         .select('id,fecha,huevos,gallinas,porcentaje_postura,observaciones,created_at')
         .order('fecha',{ascending:false})
         .limit(7);
@@ -193,7 +193,7 @@
     const today=localDate();
     const percentage=Number((eggs/FLOCK_SIZE*100).toFixed(2));
     try{
-      const {error}=await supabaseClient.from('produccion').upsert({
+      const {error}=await supabaseClient.from('Producción').upsert({
         fecha:today,
         huevos:eggs,
         gallinas:FLOCK_SIZE,

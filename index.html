@@ -73,6 +73,12 @@
         <div class="small" id="saveMessage" style="margin-top:8px"></div>
       </div>
       <div class="card" style="margin-top:12px">
+        <div class="row"><b>🔔 Recordatorio diario</b><span class="pill" id="notifyStatus">Pendiente</span></div>
+        <div class="small" style="margin-top:6px">Activa las notificaciones para recibir un aviso diario cuando todavía no hayas registrado la producción.</div>
+        <div class="row" style="margin-top:12px"><button class="btn" id="enableNotifications">Activar recordatorios</button></div>
+        <div class="small" id="notifyMessage" style="margin-top:8px"></div>
+      </div>
+      <div class="card" style="margin-top:12px">
         <div class="row"><b>Últimos registros</b><span class="pill" id="historyStatus">Supabase</span></div>
         <div id="eggHistory" class="history-list"><div class="muted">Cargando…</div></div>
       </div>
@@ -209,9 +215,44 @@
     }finally{button.disabled=false;}
   });
 
+  async function setupNotifications(){
+    const status=document.getElementById('notifyStatus');
+    const message=document.getElementById('notifyMessage');
+    const button=document.getElementById('enableNotifications');
+    if(!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)){
+      status.textContent='No compatible';
+      message.textContent='Este dispositivo o navegador no admite notificaciones push para esta PWA.';
+      button.disabled=true;
+      return;
+    }
+    if(Notification.permission==='granted'){
+      status.textContent='Permiso activo';
+      message.textContent='Permiso concedido. En el siguiente paso conectaremos el envío diario desde Supabase.';
+    } else if(Notification.permission==='denied'){
+      status.textContent='Bloqueadas';
+      message.textContent='Las notificaciones están bloqueadas. Debes permitirlas desde los ajustes del navegador.';
+    }
+    button.addEventListener('click',async()=>{
+      try{
+        const permission=await Notification.requestPermission();
+        if(permission!=='granted'){
+          status.textContent='No activadas';
+          message.textContent='No se concedió permiso para las notificaciones.';
+          return;
+        }
+        status.textContent='Permiso activo';
+        message.textContent='Permiso concedido. En el siguiente paso conectaremos el envío diario desde Supabase.';
+      }catch(error){
+        console.error('Notification setup error:',error);
+        message.textContent='No se pudieron activar los recordatorios.';
+      }
+    });
+  }
+
   function drawChart(){const c=document.getElementById('chart'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#e4dfd2';ctx.lineWidth=2;[50,120,190,260].forEach(y=>{ctx.beginPath();ctx.moveTo(25,y);ctx.lineTo(w-20,y);ctx.stroke()});const vals=[24.2,24.8,25.1,25.6,26.4,27.1,28.0,27.5,26.8,26.3,25.9,25.4];ctx.beginPath();vals.forEach((v,i)=>{const x=25+i*(w-55)/(vals.length-1);const y=h-25-(v-23)*28;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.strokeStyle='#516d43';ctx.lineWidth=5;ctx.stroke();}
 
   loadProduction();
+  setupNotifications();
   if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 </script>
 </body>

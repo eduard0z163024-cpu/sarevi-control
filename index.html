@@ -25,7 +25,7 @@
     .section-title{font-size:16px;font-weight:700;margin:22px 4px 10px}.control{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line)}.control:first-child{border-top:0}.ctrl-left{display:flex;align-items:center;gap:10px}.icon{font-size:22px}.switch{width:50px;height:30px;border-radius:20px;background:#d7d3c8;padding:3px;cursor:pointer}.knob{width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.18);transition:.2s}.switch.on{background:var(--accent)}.switch.on .knob{transform:translateX(20px)}
     canvas{width:100%;height:170px;background:#fff;border-radius:14px;border:1px solid var(--line)}
     nav{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:auto;background:rgba(255,253,247,.96);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding:9px 8px calc(9px + env(safe-area-inset-bottom))}.tab{background:none;border:0;color:var(--muted);font-size:11px;padding:7px 0}.tab span{display:block;font-size:19px;margin-bottom:2px}.tab.active{color:var(--accent);font-weight:700}
-    .page{display:none}.page.active{display:block}.btn{border:0;background:var(--accent);color:#fff;border-radius:14px;padding:11px 14px;font-weight:700}.btn:disabled{opacity:.6}.alert{background:#fff0ed;border:1px solid #f0c8c0;color:#7a362d;border-radius:16px;padding:12px;font-size:13px}.ok-alert{background:#ecf5ec;border-color:#cfe2cf;color:#315f40}.input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font-size:18px}.history-list{margin-top:12px}.history-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid var(--line)}.history-item:first-child{border-top:0}.muted{color:var(--muted)}
+    .page{display:none}.page.active{display:block}.btn{border:0;background:var(--accent);color:#fff;border-radius:14px;padding:11px 14px;font-weight:700}.btn:disabled{opacity:.6}.alert{background:#fff0ed;border:1px solid #f0c8c0;color:#7a362d;border-radius:16px;padding:12px;font-size:13px}.ok-alert{background:#ecf5ec;border-color:#cfe2cf;color:#315f40}.input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font-size:18px}.history-list{margin-top:12px}.history-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line)}.history-item:first-child{border-top:0}.delete-btn{border:1px solid #e7c7c1;background:#fff6f4;color:var(--danger);border-radius:10px;padding:7px 9px;font-weight:700;font-size:12px;white-space:nowrap}.delete-btn:disabled{opacity:.5}.history-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);background:#fff;border-radius:14px;padding:11px 13px;color:var(--ink);font-weight:700;font-size:13px;cursor:pointer}.history-toggle .chevron{transition:.2s}.history-toggle.open .chevron{transform:rotate(180deg)}.history-content{display:none}.history-content.open{display:block}.muted{color:var(--muted)}
   </style>
 </head>
 <body>
@@ -80,7 +80,7 @@
         <div style="margin-top:10px"><div class="small">Bajas totales acumuladas</div><div class="row"><input class="input" id="bajasInput" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="Ej. 11"><button class="btn" id="saveBajas">Guardar</button></div></div>
         <div class="small" id="bajasMessage" style="margin-top:8px"></div>
         <div class="row" style="margin-top:10px"><span class="small">Gallinas actuales</span><b id="currentFlock">100</b></div>
-        <div class="history-list" id="bajasHistory"><div class="muted">Cargando…</div></div>
+        <button type="button" class="history-toggle" id="toggleBajasHistory" aria-expanded="false"><span>📋 Historial de bajas</span><span class="chevron">▼</span></button><div class="history-content" id="bajasHistoryContent"><div class="history-list" id="bajasHistory"><div class="muted">Cargando…</div></div></div>
       </div>
       <div class="card" style="margin-top:12px">
         <div class="row"><b>🔔 Recordatorio diario</b><span class="pill" id="notifyStatus">Pendiente</span></div>
@@ -127,6 +127,7 @@
   const tabs=[...document.querySelectorAll('.tab')], pages=[...document.querySelectorAll('.page')];
   tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remove('active'));pages.forEach(p=>p.classList.remove('active'));t.classList.add('active');document.getElementById(t.dataset.page).classList.add('active');if(t.dataset.page==='historial')drawChart();}));
   document.querySelectorAll('.switch').forEach(s=>s.addEventListener('click',()=>{s.classList.toggle('on');}));
+  document.getElementById('toggleBajasHistory').addEventListener('click',()=>{const btn=document.getElementById('toggleBajasHistory');const content=document.getElementById('bajasHistoryContent');const open=content.classList.toggle('open');btn.classList.toggle('open',open);btn.setAttribute('aria-expanded',open?'true':'false');});
 
   function localDate(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
   function formatDate(date){const [y,m,d]=date.split('-');return `${d}/${m}/${y}`;}
@@ -151,8 +152,9 @@
     if(totalBajas>0) input.placeholder=`Ej. ${Math.min(BASE_FLOCK_SIZE,totalBajas+1)}`;
     const list=document.getElementById('bajasHistory');
     list.innerHTML=bajasHistory.length
-      ? bajasHistory.slice(0,7).map(x=>`<div class="history-item"><span><b>${formatDate(x.fecha)}</b><br><span class="muted">Bajas totales acumuladas</span></span><strong>${x.bajas_totales} ☠️</strong></div>`).join('')
+      ? bajasHistory.slice(0,7).map(x=>`<div class="history-item"><span><b>${formatDate(x.fecha)}</b><br><span class="muted">Bajas totales acumuladas</span></span><span style="display:flex;align-items:center;gap:8px"><strong>${x.bajas_totales} ☠️</strong><button class="delete-btn" data-delete-baja="${x.id}">🗑️ Eliminar</button></span></div>`).join('')
       : '<div class="muted">Todavía no hay registros de bajas.</div>';
+    document.querySelectorAll('[data-delete-baja]').forEach(btn=>btn.addEventListener('click',()=>deleteBaja(btn.dataset.deleteBaja)));
   }
 
   function renderProduction(){
@@ -206,6 +208,22 @@
       console.error('Bajas load error:',error);
       document.getElementById('bajasHistory').innerHTML='<div class="muted">No se pudo consultar las bajas.</div>';
     }
+  }
+
+  async function deleteBaja(id){
+    const registro=bajasHistory.find(x=>String(x.id)===String(id));
+    if(!registro) return;
+    const ok=confirm(`⚠️ ¿Eliminar este registro?\n\n${formatDate(registro.fecha)} — ${registro.bajas_totales} bajas acumuladas\n\nEsta acción puede modificar el número actual de gallinas.`);
+    if(!ok) return;
+
+    const {error}=await supabaseClient.from('Bajas').delete().eq('id',id);
+    if(error){
+      document.getElementById('bajasMessage').textContent='No se pudo eliminar: '+(error.message||'revisa la política DELETE de Bajas.');
+      return;
+    }
+    document.getElementById('bajasMessage').textContent='Registro eliminado correctamente.';
+    await loadBajas();
+    await loadProduction();
   }
 
   async function loadProduction(){

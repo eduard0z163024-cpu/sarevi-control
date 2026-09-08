@@ -167,10 +167,10 @@
 
     if(entry){
       homeEggs.textContent=entry.huevos;
-      homeFlock.textContent=`de ${entry.gallinas} gallinas`;
+      homeFlock.textContent=`de ${currentFlockSize} gallinas`;
       todayEggs.textContent=entry.huevos;
-      todayRate.textContent=`${pct(entry.huevos,entry.gallinas)} % postura`;
-      setAlert(`✓ Producción de hoy registrada: ${entry.huevos} huevos (${pct(entry.huevos,entry.gallinas)} % postura).`, true);
+      todayRate.textContent=`${pct(entry.huevos,currentFlockSize)} % postura`;
+      setAlert(`✓ Producción de hoy registrada: ${entry.huevos} huevos (${pct(entry.huevos,currentFlockSize)} % postura).`, true);
       document.getElementById('systemStatus').textContent='Producción registrada';
       document.getElementById('lastUpdate').textContent=`Último registro: ${formatDate(entry.fecha)}`;
     } else {

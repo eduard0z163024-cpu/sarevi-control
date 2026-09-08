@@ -1,5 +1,4 @@
 const CACHE = 'sarevi-v9';
-
 // Service Worker V9: simple and robust.
 // No precaching is required for push subscriptions to work.
 self.addEventListener('install', event => {

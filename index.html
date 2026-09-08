@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#334b2d" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="SAREVI CONTROL" />
+  <title>SAREVI CONTROL</title>
+  <style>
+    :root{--bg:#f4f1e8;--card:#fffdf7;--ink:#243025;--muted:#6d7468;--accent:#516d43;--line:#e4dfd2;--danger:#a84c3e;--ok:#3f7752;--shadow:0 12px 30px rgba(46,54,39,.08)}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    .app{max-width:520px;margin:auto;min-height:100vh;padding-bottom:92px}
+    header{padding:24px 20px 14px;display:flex;align-items:center;justify-content:space-between}
+    .brand{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:16px;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:25px;box-shadow:var(--shadow)}
+    h1{margin:0;font-size:22px;letter-spacing:.4px}.sub{margin-top:3px;color:var(--muted);font-size:13px}
+    .status{font-size:12px;padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:var(--card)}
+    main{padding:0 16px}.hero{background:linear-gradient(135deg,#dfe7d4,#f7f2e4);border:1px solid var(--line);border-radius:24px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px}.hero strong{font-size:28px}.hero p{margin:5px 0 0;color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow)}.label{color:var(--muted);font-size:12px}.value{font-size:26px;font-weight:700;margin-top:5px}.small{font-size:12px;color:var(--muted);margin-top:3px}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:10px}.pill{padding:6px 9px;border-radius:999px;font-size:11px;background:#ecf5ec;color:var(--ok);font-weight:700}.off{background:#f2eee5;color:#777}
+    .section-title{font-size:16px;font-weight:700;margin:22px 4px 10px}.control{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line)}.control:first-child{border-top:0}.ctrl-left{display:flex;align-items:center;gap:10px}.icon{font-size:22px}.switch{width:50px;height:30px;border-radius:20px;background:#d7d3c8;padding:3px;cursor:pointer}.knob{width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.18);transition:.2s}.switch.on{background:var(--accent)}.switch.on .knob{transform:translateX(20px)}
+    canvas{width:100%;height:170px;background:#fff;border-radius:14px;border:1px solid var(--line)}
+    nav{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:auto;background:rgba(255,253,247,.96);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding:9px 8px calc(9px + env(safe-area-inset-bottom))}.tab{background:none;border:0;color:var(--muted);font-size:11px;padding:7px 0}.tab span{display:block;font-size:19px;margin-bottom:2px}.tab.active{color:var(--accent);font-weight:700}
+    .page{display:none}.page.active{display:block}.btn{border:0;background:var(--accent);color:#fff;border-radius:14px;padding:11px 14px;font-weight:700}.alert{background:#fff0ed;border:1px solid #f0c8c0;color:#7a362d;border-radius:16px;padding:12px;font-size:13px}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><div class="logo">🐔</div><div><h1>SAREVI CONTROL</h1><div class="sub">Gallinero inteligente</div></div></div>
+    <div class="status">● En línea</div>
+  </header>
+
+  <main>
+    <section id="inicio" class="page active">
+      <div class="hero"><div class="label">ESTADO DEL GALLINERO</div><strong>Todo bajo control</strong><p>Última actualización: hace 18 segundos</p></div>
+      <div class="grid">
+        <div class="card"><div class="label">🌡️ Temperatura</div><div class="value" id="temp">26.4 °C</div><div class="small">Ideal: 22–28 °C</div></div>
+        <div class="card"><div class="label">💧 Humedad</div><div class="value">68 %</div><div class="small">Nivel normal</div></div>
+        <div class="card"><div class="label">🚰 Agua</div><div class="value">82 %</div><div class="small">Tinaco / depósito</div></div>
+        <div class="card"><div class="label">🥚 Producción hoy</div><div class="value">86</div><div class="small">de 92 gallinas</div></div>
+      </div>
+      <div class="section-title">Equipos</div>
+      <div class="card">
+        <div class="control"><div class="ctrl-left"><div class="icon">🌬️</div><div><b>Ventilador</b><div class="small">Control automático</div></div></div><div class="switch" data-device="fan"><div class="knob"></div></div></div>
+        <div class="control"><div class="ctrl-left"><div class="icon">💡</div><div><b>Iluminación</b><div class="small">Horario programado</div></div></div><div class="switch on" data-device="light"><div class="knob"></div></div></div>
+        <div class="control"><div class="ctrl-left"><div class="icon">🚿</div><div><b>Bomba de agua</b><div class="small">Activación manual</div></div></div><div class="switch" data-device="pump"><div class="knob"></div></div></div>
+      </div>
+      <div class="section-title">Alertas</div>
+      <div class="alert">✓ No hay alertas críticas. El sistema está operando normalmente.</div>
+    </section>
+
+    <section id="historial" class="page">
+      <div class="section-title">Historial</div>
+      <div class="card"><div class="label">Temperatura · últimas 12 h</div><canvas id="chart" width="600" height="280"></canvas></div>
+      <div class="grid" style="margin-top:12px"><div class="card"><div class="label">Promedio</div><div class="value">25.8 °C</div></div><div class="card"><div class="label">Máxima</div><div class="value">29.1 °C</div></div></div>
+    </section>
+
+    <section id="produccion" class="page">
+      <div class="section-title">Producción de huevo</div>
+      <div class="grid"><div class="card"><div class="label">Hoy</div><div class="value">86</div><div class="small">93.5 % postura</div></div><div class="card"><div class="label">Esta semana</div><div class="value">596</div><div class="small">promedio 85/día</div></div></div>
+      <div class="card" style="margin-top:12px"><div class="row"><div><b>Registro rápido</b><div class="small">Agrega la producción del día</div></div><button class="btn" id="addEggs">+ 1 huevo</button></div></div>
+    </section>
+
+    <section id="ajustes" class="page">
+      <div class="section-title">Configuración</div>
+      <div class="card">
+        <div class="control"><div><b>Nombre del gallinero</b><div class="small">Gallinero principal</div></div><span>›</span></div>
+        <div class="control"><div><b>Temperatura máxima</b><div class="small">30 °C</div></div><span>›</span></div>
+        <div class="control"><div><b>Conexión ESP32</b><div class="small">Pendiente de configurar</div></div><span>›</span></div>
+      </div>
+    </section>
+  </main>
+
+  <nav>
+    <button class="tab active" data-page="inicio"><span>⌂</span>Inicio</button>
+    <button class="tab" data-page="historial"><span>◔</span>Historial</button>
+    <button class="tab" data-page="produccion"><span>🥚</span>Producción</button>
+    <button class="tab" data-page="ajustes"><span>⚙</span>Más</button>
+  </nav>
+</div>
+<script>
+  const tabs=[...document.querySelectorAll('.tab')], pages=[...document.querySelectorAll('.page')];
+  tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remove('active'));pages.forEach(p=>p.classList.remove('active'));t.classList.add('active');document.getElementById(t.dataset.page).classList.add('active');if(t.dataset.page==='historial')drawChart();}));
+  document.querySelectorAll('.switch').forEach(s=>s.addEventListener('click',()=>{s.classList.toggle('on');}));
+  let eggs=86;document.getElementById('addEggs').addEventListener('click',()=>{eggs++;document.querySelector('#produccion .value').textContent=eggs;document.querySelector('#inicio .value').textContent=eggs;});
+  function drawChart(){const c=document.getElementById('chart'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#e4dfd2';ctx.lineWidth=2;[50,120,190,260].forEach(y=>{ctx.beginPath();ctx.moveTo(25,y);ctx.lineTo(w-20,y);ctx.stroke()});const vals=[24.2,24.8,25.1,25.6,26.4,27.1,28.0,27.5,26.8,26.3,25.9,25.4];ctx.beginPath();vals.forEach((v,i)=>{const x=25+i*(w-55)/(vals.length-1);const y=h-25-(v-23)*28;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.strokeStyle='#516d43';ctx.lineWidth=5;ctx.stroke();}
+  if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});} 
+</script>
+</body>
+</html>

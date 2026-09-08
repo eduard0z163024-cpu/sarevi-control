@@ -236,6 +236,10 @@
     const status=document.getElementById('notifyStatus');
     const message=document.getElementById('notifyMessage');
     const button=document.getElementById('enableNotifications');
+
+    const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+    const isStandalone=window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
     if(!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)){
       status.textContent='No compatible';
       message.textContent='Este dispositivo o navegador no admite notificaciones push para esta PWA.';
@@ -243,20 +247,34 @@
       return;
     }
 
-    if(Notification.permission==='granted'){
+    if(isIOS && !isStandalone){
+      status.textContent='Instalar PWA';
+      message.textContent='En iPhone, primero agrega SAREVI CONTROL a la pantalla de inicio y ábrelo desde su icono para activar las notificaciones.';
+    } else if(Notification.permission==='granted'){
       status.textContent='Permiso activo';
       message.textContent='Permiso concedido. Pulsa Activar recordatorios para registrar este dispositivo.';
     } else if(Notification.permission==='denied'){
       status.textContent='Bloqueadas';
-      message.textContent='Las notificaciones están bloqueadas. Debes permitirlas desde los ajustes del navegador.';
+      message.textContent='Las notificaciones están bloqueadas. Debes permitirlas desde los ajustes del dispositivo.';
     } else {
       status.textContent='Pendiente';
       message.textContent='Pulsa Activar recordatorios para conceder el permiso.';
     }
 
-    button.addEventListener('click',async()=>{
+    // El listener se instala inmediatamente. Así el botón funciona incluso si
+    // el service worker tarda en quedar listo.
+    button.onclick=async()=>{
       button.disabled=true;
       try{
+        if(isIOS && !isStandalone){
+          status.textContent='Instalar PWA';
+          message.textContent='En iPhone, agrega SAREVI CONTROL a la pantalla de inicio y vuelve a abrirlo desde allí.';
+          return;
+        }
+
+        status.textContent='Preparando…';
+        message.textContent='Solicitando permiso para notificaciones…';
+
         let permission=Notification.permission;
         if(permission!=='granted') permission=await Notification.requestPermission();
         if(permission!=='granted'){
@@ -265,10 +283,14 @@
           return;
         }
 
-        message.textContent='Registrando este dispositivo…';
-        let subscription=await registration.pushManager.getSubscription();
+        message.textContent='Preparando servicio de notificaciones…';
+        const reg=registration || await navigator.serviceWorker.ready;
+        if(!reg) throw new Error('El servicio de notificaciones todavía no está listo.');
+
+        let subscription=await reg.pushManager.getSubscription();
         if(!subscription){
-          subscription=await registration.pushManager.subscribe({
+          message.textContent='Registrando este dispositivo…';
+          subscription=await reg.pushManager.subscribe({
             userVisibleOnly:true,
             applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
           });
@@ -292,15 +314,18 @@
       }finally{
         button.disabled=false;
       }
-    });
+    };
   }
 
   function drawChart(){const c=document.getElementById('chart'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#e4dfd2';ctx.lineWidth=2;[50,120,190,260].forEach(y=>{ctx.beginPath();ctx.moveTo(25,y);ctx.lineTo(w-20,y);ctx.stroke()});const vals=[24.2,24.8,25.1,25.6,26.4,27.1,28.0,27.5,26.8,26.3,25.9,25.4];ctx.beginPath();vals.forEach((v,i)=>{const x=25+i*(w-55)/(vals.length-1);const y=h-25-(v-23)*28;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.strokeStyle='#516d43';ctx.lineWidth=5;ctx.stroke();}
 
   loadProduction();
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(registration=>setupNotifications(registration)).catch(error=>{
+    navigator.serviceWorker.register('sw.js').then(registration=>{
+      setupNotifications(registration);
+    }).catch(error=>{
       console.error('Service worker error:',error);
+      document.getElementById('notifyStatus').textContent='Error';
       document.getElementById('notifyMessage').textContent='No se pudo preparar el servicio de notificaciones.';
     });
   }

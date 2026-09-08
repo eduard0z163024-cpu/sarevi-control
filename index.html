@@ -42,7 +42,8 @@
         <div class="card"><div class="label">🌡️ Temperatura</div><div class="value" id="temp">26.4 °C</div><div class="small">Ideal: 22–28 °C</div></div>
         <div class="card"><div class="label">💧 Humedad</div><div class="value">68 %</div><div class="small">Nivel normal</div></div>
         <div class="card"><div class="label">🚰 Agua</div><div class="value">82 %</div><div class="small">Tinaco / depósito</div></div>
-        <div class="card"><div class="label">🥚 Producción hoy</div><div class="value" id="homeEggs">—</div><div class="small" id="homeFlock">de 90 gallinas</div></div>
+        <div class="card"><div class="label">🥚 Producción hoy</div><div class="value" id="homeEggs">—</div><div class="small" id="homeFlock">de 100 gallinas</div></div>
+        <div class="card"><div class="label">☠️ Bajas totales</div><div class="value" id="homeBajas">0</div><div class="small" id="homeCurrentFlock">Gallinas actuales: 100</div></div>
       </div>
       <div class="section-title">Equipos</div>
       <div class="card">
@@ -71,6 +72,15 @@
         <div class="small">Solo escribe cuántos huevos recolectaste hoy. La fecha, gallinas y porcentaje se calculan automáticamente.</div>
         <div class="row" style="margin-top:12px"><input class="input" id="eggInput" type="number" min="0" max="500" step="1" inputmode="numeric" placeholder="Ej. 86"/><button class="btn" id="saveEggs">Guardar</button></div>
         <div class="small" id="saveMessage" style="margin-top:8px"></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <b>☠️ Registrar bajas</b>
+        <div class="small">Registra únicamente la fecha y las bajas totales acumuladas. El lote actual se calcula automáticamente a partir de 100 gallinas iniciales.</div>
+        <div style="margin-top:12px"><div class="small">Fecha</div><input class="input" id="bajaFecha" type="date"></div>
+        <div style="margin-top:10px"><div class="small">Bajas totales acumuladas</div><div class="row"><input class="input" id="bajasInput" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="Ej. 11"><button class="btn" id="saveBajas">Guardar</button></div></div>
+        <div class="small" id="bajasMessage" style="margin-top:8px"></div>
+        <div class="row" style="margin-top:10px"><span class="small">Gallinas actuales</span><b id="currentFlock">100</b></div>
+        <div class="history-list" id="bajasHistory"><div class="muted">Cargando…</div></div>
       </div>
       <div class="card" style="margin-top:12px">
         <div class="row"><b>🔔 Recordatorio diario</b><span class="pill" id="notifyStatus">Pendiente</span></div>
@@ -108,7 +118,10 @@
   const SUPABASE_URL = 'https://gfbznvjremlztaikwbtk.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-qsKquEYeF1gc82__tXpkA_CvEGN1zu';
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-  const FLOCK_SIZE = 90;
+  const BASE_FLOCK_SIZE = 100;
+  let currentFlockSize = BASE_FLOCK_SIZE;
+  let totalBajas = 0;
+  let bajasHistory = [];
   let eggHistory = [];
 
   const tabs=[...document.querySelectorAll('.tab')], pages=[...document.querySelectorAll('.page')];
@@ -129,6 +142,19 @@
     el.className='alert'+(ok?' ok-alert':'');
   }
 
+  function renderBajas(){
+    document.getElementById('homeBajas').textContent=totalBajas;
+    document.getElementById('homeCurrentFlock').textContent=`Gallinas actuales: ${currentFlockSize}`;
+    document.getElementById('currentFlock').textContent=currentFlockSize;
+    const input=document.getElementById('bajasInput');
+    input.max=BASE_FLOCK_SIZE;
+    if(totalBajas>0) input.placeholder=`Ej. ${Math.min(BASE_FLOCK_SIZE,totalBajas+1)}`;
+    const list=document.getElementById('bajasHistory');
+    list.innerHTML=bajasHistory.length
+      ? bajasHistory.slice(0,7).map(x=>`<div class="history-item"><span><b>${formatDate(x.fecha)}</b><br><span class="muted">Bajas totales acumuladas</span></span><strong>${x.bajas_totales} ☠️</strong></div>`).join('')
+      : '<div class="muted">Todavía no hay registros de bajas.</div>';
+  }
+
   function renderProduction(){
     const today=localDate();
     const entry=eggHistory.find(x=>x.fecha===today);
@@ -147,7 +173,7 @@
       document.getElementById('lastUpdate').textContent=`Último registro: ${formatDate(entry.fecha)}`;
     } else {
       homeEggs.textContent='—';
-      homeFlock.textContent=`de ${FLOCK_SIZE} gallinas`;
+      homeFlock.textContent=`de ${currentFlockSize} gallinas`;
       todayEggs.textContent='—';
       todayRate.textContent='Pendiente de registrar';
       setAlert('⚠ Registra la producción de hoy para completar el control diario.');
@@ -162,6 +188,24 @@
 
     const list=document.getElementById('eggHistory');
     list.innerHTML=week.length ? week.map(x=>`<div class="history-item"><span><b>${formatDate(x.fecha)}</b><br><span class="muted">${pct(x.huevos,x.gallinas)} % postura · ${x.gallinas} gallinas</span></span><strong>${x.huevos} 🥚</strong></div>`).join('') : '<div class="muted">Todavía no hay registros.</div>';
+  }
+
+  async function loadBajas(){
+    try{
+      const {data,error}=await supabaseClient
+        .from('Bajas')
+        .select('id,fecha,bajas_totales,created_at')
+        .order('fecha',{ascending:false});
+      if(error) throw error;
+      bajasHistory=data||[];
+      totalBajas=bajasHistory.length ? Math.max(...bajasHistory.map(x=>Number(x.bajas_totales)||0)) : 0;
+      currentFlockSize=Math.max(0,BASE_FLOCK_SIZE-totalBajas);
+      renderBajas();
+      setConnection(true);
+    }catch(error){
+      console.error('Bajas load error:',error);
+      document.getElementById('bajasHistory').innerHTML='<div class="muted">No se pudo consultar las bajas.</div>';
+    }
   }
 
   async function loadProduction(){
@@ -187,6 +231,45 @@
     }
   }
 
+  document.getElementById('bajaFecha').value=localDate();
+
+  document.getElementById('saveBajas').addEventListener('click',async()=>{
+    const dateInput=document.getElementById('bajaFecha');
+    const input=document.getElementById('bajasInput');
+    const msg=document.getElementById('bajasMessage');
+    const button=document.getElementById('saveBajas');
+    const fecha=dateInput.value;
+    const nuevasBajas=Number(input.value);
+    if(!fecha){msg.textContent='Selecciona una fecha.';return;}
+    if(!Number.isInteger(nuevasBajas)||nuevasBajas<0||nuevasBajas>BASE_FLOCK_SIZE){msg.textContent=`Escribe un número entero entre 0 y ${BASE_FLOCK_SIZE}.`;return;}
+
+    const registroExistente=bajasHistory.find(x=>x.fecha===fecha);
+    const maxOtras=bajasHistory.filter(x=>x.fecha!==fecha).reduce((max,x)=>Math.max(max,Number(x.bajas_totales)||0),0);
+    if(nuevasBajas<maxOtras){
+      msg.textContent=`Las bajas totales no pueden ser menores que ${maxOtras}, que ya están registradas.`;
+      return;
+    }
+    if(nuevasBajas===0 && maxOtras===0){
+      msg.textContent='Registra una cantidad mayor que 0 cuando exista una baja.';
+      return;
+    }
+
+    button.disabled=true;
+    msg.textContent='Guardando en Supabase…';
+    try{
+      const payload={fecha,bajas_totales:nuevasBajas};
+      const {error}=await supabaseClient.from('Bajas').upsert(payload,{onConflict:'fecha'});
+      if(error) throw error;
+      input.value='';
+      msg.textContent=`Bajas guardadas. Gallinas actuales: ${BASE_FLOCK_SIZE-nuevasBajas}`;
+      await loadBajas();
+      await loadProduction();
+    }catch(error){
+      console.error('Bajas save error:',error);
+      msg.textContent='No se pudo guardar: '+(error.message||'revisa las políticas RLS de Bajas.');
+    }finally{button.disabled=false;}
+  });
+
   document.getElementById('saveEggs').addEventListener('click',async()=>{
     const input=document.getElementById('eggInput');
     const msg=document.getElementById('saveMessage');
@@ -197,12 +280,12 @@
     button.disabled=true;
     msg.textContent='Guardando en Supabase…';
     const today=localDate();
-    const percentage=Number((eggs/FLOCK_SIZE*100).toFixed(2));
+    const percentage=Number((eggs/currentFlockSize*100).toFixed(2));
     try{
       const {error}=await supabaseClient.from('Producción').upsert({
         fecha:today,
         huevos:eggs,
-        gallinas:FLOCK_SIZE,
+        gallinas:currentFlockSize,
         porcentaje_postura:percentage
       },{onConflict:'fecha'});
       if(error) throw error;
@@ -319,7 +402,7 @@
 
   function drawChart(){const c=document.getElementById('chart'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#e4dfd2';ctx.lineWidth=2;[50,120,190,260].forEach(y=>{ctx.beginPath();ctx.moveTo(25,y);ctx.lineTo(w-20,y);ctx.stroke()});const vals=[24.2,24.8,25.1,25.6,26.4,27.1,28.0,27.5,26.8,26.3,25.9,25.4];ctx.beginPath();vals.forEach((v,i)=>{const x=25+i*(w-55)/(vals.length-1);const y=h-25-(v-23)*28;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.strokeStyle='#516d43';ctx.lineWidth=5;ctx.stroke();}
 
-  loadProduction();
+  loadBajas().then(()=>loadProduction());
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(registration=>{
       setupNotifications(registration);

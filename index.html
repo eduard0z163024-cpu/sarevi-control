@@ -25,24 +25,24 @@
     .section-title{font-size:16px;font-weight:700;margin:22px 4px 10px}.control{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line)}.control:first-child{border-top:0}.ctrl-left{display:flex;align-items:center;gap:10px}.icon{font-size:22px}.switch{width:50px;height:30px;border-radius:20px;background:#d7d3c8;padding:3px;cursor:pointer}.knob{width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.18);transition:.2s}.switch.on{background:var(--accent)}.switch.on .knob{transform:translateX(20px)}
     canvas{width:100%;height:170px;background:#fff;border-radius:14px;border:1px solid var(--line)}
     nav{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:auto;background:rgba(255,253,247,.96);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);padding:9px 8px calc(9px + env(safe-area-inset-bottom))}.tab{background:none;border:0;color:var(--muted);font-size:11px;padding:7px 0}.tab span{display:block;font-size:19px;margin-bottom:2px}.tab.active{color:var(--accent);font-weight:700}
-    .page{display:none}.page.active{display:block}.btn{border:0;background:var(--accent);color:#fff;border-radius:14px;padding:11px 14px;font-weight:700}.alert{background:#fff0ed;border:1px solid #f0c8c0;color:#7a362d;border-radius:16px;padding:12px;font-size:13px}
+    .page{display:none}.page.active{display:block}.btn{border:0;background:var(--accent);color:#fff;border-radius:14px;padding:11px 14px;font-weight:700}.btn:disabled{opacity:.6}.alert{background:#fff0ed;border:1px solid #f0c8c0;color:#7a362d;border-radius:16px;padding:12px;font-size:13px}.ok-alert{background:#ecf5ec;border-color:#cfe2cf;color:#315f40}.input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font-size:18px}.history-list{margin-top:12px}.history-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid var(--line)}.history-item:first-child{border-top:0}.muted{color:var(--muted)}
   </style>
 </head>
 <body>
 <div class="app">
   <header>
     <div class="brand"><div class="logo">🐔</div><div><h1>SAREVI CONTROL</h1><div class="sub">Gallinero inteligente</div></div></div>
-    <div class="status">● En línea</div>
+    <div class="status" id="connectionStatus">● Conectando…</div>
   </header>
 
   <main>
     <section id="inicio" class="page active">
-      <div class="hero"><div class="label">ESTADO DEL GALLINERO</div><strong>Todo bajo control</strong><p>Última actualización: hace 18 segundos</p></div>
+      <div class="hero"><div class="label">ESTADO DEL GALLINERO</div><strong id="systemStatus">Todo bajo control</strong><p id="lastUpdate">Consultando producción…</p></div>
       <div class="grid">
         <div class="card"><div class="label">🌡️ Temperatura</div><div class="value" id="temp">26.4 °C</div><div class="small">Ideal: 22–28 °C</div></div>
         <div class="card"><div class="label">💧 Humedad</div><div class="value">68 %</div><div class="small">Nivel normal</div></div>
         <div class="card"><div class="label">🚰 Agua</div><div class="value">82 %</div><div class="small">Tinaco / depósito</div></div>
-        <div class="card"><div class="label">🥚 Producción hoy</div><div class="value">86</div><div class="small">de 92 gallinas</div></div>
+        <div class="card"><div class="label">🥚 Producción hoy</div><div class="value" id="homeEggs">—</div><div class="small" id="homeFlock">de 90 gallinas</div></div>
       </div>
       <div class="section-title">Equipos</div>
       <div class="card">
@@ -51,7 +51,7 @@
         <div class="control"><div class="ctrl-left"><div class="icon">🚿</div><div><b>Bomba de agua</b><div class="small">Activación manual</div></div></div><div class="switch" data-device="pump"><div class="knob"></div></div></div>
       </div>
       <div class="section-title">Alertas</div>
-      <div class="alert">✓ No hay alertas críticas. El sistema está operando normalmente.</div>
+      <div class="alert" id="productionAlert">Consultando producción de hoy…</div>
     </section>
 
     <section id="historial" class="page">
@@ -62,8 +62,20 @@
 
     <section id="produccion" class="page">
       <div class="section-title">Producción de huevo</div>
-      <div class="grid"><div class="card"><div class="label">Hoy</div><div class="value">86</div><div class="small">93.5 % postura</div></div><div class="card"><div class="label">Esta semana</div><div class="value">596</div><div class="small">promedio 85/día</div></div></div>
-      <div class="card" style="margin-top:12px"><div class="row"><div><b>Registro rápido</b><div class="small">Agrega la producción del día</div></div><button class="btn" id="addEggs">+ 1 huevo</button></div></div>
+      <div class="grid">
+        <div class="card"><div class="label">Hoy</div><div class="value" id="todayEggs">—</div><div class="small" id="todayRate">Pendiente de registrar</div></div>
+        <div class="card"><div class="label">Esta semana</div><div class="value" id="weekEggs">0</div><div class="small" id="weekAvg">sin registros</div></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <b>Registrar producción</b>
+        <div class="small">Solo escribe cuántos huevos recolectaste hoy. La fecha, gallinas y porcentaje se calculan automáticamente.</div>
+        <div class="row" style="margin-top:12px"><input class="input" id="eggInput" type="number" min="0" max="500" step="1" inputmode="numeric" placeholder="Ej. 86"/><button class="btn" id="saveEggs">Guardar</button></div>
+        <div class="small" id="saveMessage" style="margin-top:8px"></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="row"><b>Últimos registros</b><span class="pill" id="historyStatus">Supabase</span></div>
+        <div id="eggHistory" class="history-list"><div class="muted">Cargando…</div></div>
+      </div>
     </section>
 
     <section id="ajustes" class="page">
@@ -83,13 +95,124 @@
     <button class="tab" data-page="ajustes"><span>⚙</span>Más</button>
   </nav>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+  // SAREVI CONTROL · Supabase
+  const SUPABASE_URL = 'https://gfbznvjremlztaikwbtk.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-qsKquEYeF1gc82__tXpkA_CvEGN1zu';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  const FLOCK_SIZE = 90;
+  let eggHistory = [];
+
   const tabs=[...document.querySelectorAll('.tab')], pages=[...document.querySelectorAll('.page')];
   tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remove('active'));pages.forEach(p=>p.classList.remove('active'));t.classList.add('active');document.getElementById(t.dataset.page).classList.add('active');if(t.dataset.page==='historial')drawChart();}));
   document.querySelectorAll('.switch').forEach(s=>s.addEventListener('click',()=>{s.classList.toggle('on');}));
-  let eggs=86;document.getElementById('addEggs').addEventListener('click',()=>{eggs++;document.querySelector('#produccion .value').textContent=eggs;document.querySelector('#inicio .value').textContent=eggs;});
+
+  function localDate(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function formatDate(date){const [y,m,d]=date.split('-');return `${d}/${m}/${y}`;}
+  function pct(eggs, hens){return hens ? (Number(eggs)/Number(hens)*100).toFixed(1) : '0.0';}
+  function setConnection(ok){
+    const el=document.getElementById('connectionStatus');
+    el.textContent=ok?'● En línea':'● Sin conexión';
+    el.style.color=ok?'var(--ok)':'var(--danger)';
+  }
+  function setAlert(message, ok=false){
+    const el=document.getElementById('productionAlert');
+    el.textContent=message;
+    el.className='alert'+(ok?' ok-alert':'');
+  }
+
+  function renderProduction(){
+    const today=localDate();
+    const entry=eggHistory.find(x=>x.fecha===today);
+    const homeEggs=document.getElementById('homeEggs');
+    const homeFlock=document.getElementById('homeFlock');
+    const todayEggs=document.getElementById('todayEggs');
+    const todayRate=document.getElementById('todayRate');
+
+    if(entry){
+      homeEggs.textContent=entry.huevos;
+      homeFlock.textContent=`de ${entry.gallinas} gallinas`;
+      todayEggs.textContent=entry.huevos;
+      todayRate.textContent=`${pct(entry.huevos,entry.gallinas)} % postura`;
+      setAlert(`✓ Producción de hoy registrada: ${entry.huevos} huevos (${pct(entry.huevos,entry.gallinas)} % postura).`, true);
+      document.getElementById('systemStatus').textContent='Producción registrada';
+      document.getElementById('lastUpdate').textContent=`Último registro: ${formatDate(entry.fecha)}`;
+    } else {
+      homeEggs.textContent='—';
+      homeFlock.textContent=`de ${FLOCK_SIZE} gallinas`;
+      todayEggs.textContent='—';
+      todayRate.textContent='Pendiente de registrar';
+      setAlert('⚠ Registra la producción de hoy para completar el control diario.');
+      document.getElementById('systemStatus').textContent='Producción pendiente';
+      document.getElementById('lastUpdate').textContent='Aún no hay registro de producción para hoy.';
+    }
+
+    const week=eggHistory.slice(0,7);
+    const total=week.reduce((a,x)=>a+Number(x.huevos||0),0);
+    document.getElementById('weekEggs').textContent=total;
+    document.getElementById('weekAvg').textContent=week.length?`promedio ${Math.round(total/week.length)}/día`:'sin registros';
+
+    const list=document.getElementById('eggHistory');
+    list.innerHTML=week.length ? week.map(x=>`<div class="history-item"><span><b>${formatDate(x.fecha)}</b><br><span class="muted">${pct(x.huevos,x.gallinas)} % postura · ${x.gallinas} gallinas</span></span><strong>${x.huevos} 🥚</strong></div>`).join('') : '<div class="muted">Todavía no hay registros.</div>';
+  }
+
+  async function loadProduction(){
+    try{
+      const {data,error}=await supabaseClient
+        .from('produccion')
+        .select('id,fecha,huevos,gallinas,porcentaje_postura,observaciones,created_at')
+        .order('fecha',{ascending:false})
+        .limit(7);
+      if(error) throw error;
+      eggHistory=data||[];
+      setConnection(true);
+      document.getElementById('historyStatus').textContent='Supabase';
+      renderProduction();
+    }catch(error){
+      console.error('Supabase load error:',error);
+      setConnection(false);
+      document.getElementById('historyStatus').textContent='Error';
+      document.getElementById('eggHistory').innerHTML='<div class="muted">No se pudo consultar la base de datos. Revisa las políticas RLS de la tabla produccion.</div>';
+      document.getElementById('homeEggs').textContent='—';
+      document.getElementById('todayEggs').textContent='—';
+      setAlert('⚠ No se pudo conectar con la base de datos.');
+    }
+  }
+
+  document.getElementById('saveEggs').addEventListener('click',async()=>{
+    const input=document.getElementById('eggInput');
+    const msg=document.getElementById('saveMessage');
+    const button=document.getElementById('saveEggs');
+    const eggs=Number(input.value);
+    if(!Number.isInteger(eggs)||eggs<0||eggs>500){msg.textContent='Escribe una cantidad entera válida entre 0 y 500.';return;}
+
+    button.disabled=true;
+    msg.textContent='Guardando en Supabase…';
+    const today=localDate();
+    const percentage=Number((eggs/FLOCK_SIZE*100).toFixed(2));
+    try{
+      const {error}=await supabaseClient.from('produccion').upsert({
+        fecha:today,
+        huevos:eggs,
+        gallinas:FLOCK_SIZE,
+        porcentaje_postura:percentage
+      },{onConflict:'fecha'});
+      if(error) throw error;
+      input.value='';
+      msg.textContent='Producción guardada correctamente en la base de datos.';
+      await loadProduction();
+    }catch(error){
+      console.error('Supabase save error:',error);
+      msg.textContent='No se pudo guardar. Revisa las políticas RLS de produccion.';
+    }finally{button.disabled=false;}
+  });
+
   function drawChart(){const c=document.getElementById('chart'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#e4dfd2';ctx.lineWidth=2;[50,120,190,260].forEach(y=>{ctx.beginPath();ctx.moveTo(25,y);ctx.lineTo(w-20,y);ctx.stroke()});const vals=[24.2,24.8,25.1,25.6,26.4,27.1,28.0,27.5,26.8,26.3,25.9,25.4];ctx.beginPath();vals.forEach((v,i)=>{const x=25+i*(w-55)/(vals.length-1);const y=h-25-(v-23)*28;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.strokeStyle='#516d43';ctx.lineWidth=5;ctx.stroke();}
-  if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});} 
+
+  loadProduction();
+  if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 </script>
 </body>
 </html>

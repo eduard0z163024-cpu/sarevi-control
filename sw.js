@@ -1,37 +1,37 @@
-const CACHE='sarevi-v8';
+const CACHE = 'sarevi-v9';
 
-const ASSETS=['./','./index.html','./manifest.json','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png'];
+// Service Worker V9: simple and robust.
+// No precaching is required for push subscriptions to work.
+self.addEventListener('install', event => {
+  self.skipWaiting();
+});
 
-self.addEventListener('install', event =>
-  event.waitUntil(
-    caches.open(CACHE)
-      .then(cache => cache.addAll(ASSETS))
-      .then(() => self.skipWaiting())
-  )
-);
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys.filter(key => key !== CACHE).map(key => caches.delete(key))
+    );
+    await self.clients.claim();
+  })());
+});
 
-self.addEventListener('activate', event =>
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE).map(k => caches.delete(k))
-      ))
-      .then(() => self.clients.claim())
-  )
-);
-
-self.addEventListener('fetch', event =>
+self.addEventListener('fetch', event => {
+  // Network first. If offline, fall back to the cache when available.
   event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
-  )
-);
+    fetch(event.request).catch(() => caches.match(event.request))
+  );
+});
 
 self.addEventListener('push', event => {
   let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch (_) {}
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_) {
+    data = { body: event.data ? event.data.text() : '' };
+  }
 
   const title = data.title || 'SAREVI CONTROL';
-
   const options = {
     body: data.body || 'Registra la producción de hoy.',
     icon: 'icons/icon-192.png',
@@ -45,19 +45,16 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
 
-  const url = event.notification.data && event.notification.data.url
-    ? event.notification.data.url
-    : './';
+  const url = event.notification.data?.url || './?page=produccion';
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      for (const client of list) {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      for (const client of clients) {
         if ('focus' in client) {
-          client.navigate(url);
-          return client.focus();
+          return client.navigate(url).then(() => client.focus());
         }
       }
-      return clients.openWindow(url);
+      return self.clients.openWindow(url);
     })
   );
 });

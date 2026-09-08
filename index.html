@@ -56,9 +56,24 @@
     </section>
 
     <section id="historial" class="page">
-      <div class="section-title">Historial</div>
-      <div class="card"><div class="label">Temperatura · últimas 12 h</div><canvas id="chart" width="600" height="280"></canvas></div>
-      <div class="grid" style="margin-top:12px"><div class="card"><div class="label">Promedio</div><div class="value">25.8 °C</div></div><div class="card"><div class="label">Máxima</div><div class="value">29.1 °C</div></div></div>
+      <div class="section-title">Historial mensual</div>
+      <div class="card month-card">
+        <div class="month-nav">
+          <button class="month-btn" id="historyPrev" aria-label="Mes anterior">‹</button>
+          <div class="month-title" id="historyMonthLabel">Septiembre 2026</div>
+          <button class="month-btn" id="historyNext" aria-label="Mes siguiente">›</button>
+        </div>
+        <div class="small" id="historyStatusMonthly">Consultando datos del mes…</div>
+      </div>
+      <div class="grid history-summary" style="margin-top:12px">
+        <div class="card"><div class="label">🥚 Total huevos</div><div class="value" id="monthTotalEggs">0</div><div class="small" id="monthEggDays">0 días registrados</div></div>
+        <div class="card"><div class="label">📈 Postura promedio</div><div class="value" id="monthAvgRate">0 %</div><div class="small">Promedio de días registrados</div></div>
+        <div class="card"><div class="label">☠️ Bajas del mes</div><div class="value" id="monthDeaths">0</div><div class="small">Nuevas bajas registradas</div></div>
+        <div class="card"><div class="label">🐔 Gallinas actuales</div><div class="value" id="monthCurrentFlock">0</div><div class="small">Tamaño actual del lote</div></div>
+      </div>
+      <div class="card chart-card"><div class="label">🥚 Producción diaria</div><canvas id="monthlyEggChart" width="600" height="280"></canvas></div>
+      <div class="card chart-card"><div class="label">📈 Porcentaje de postura</div><canvas id="monthlyRateChart" width="600" height="280"></canvas></div>
+      <div class="card chart-card"><div class="label">☠️ Bajas del mes</div><canvas id="monthlyBajaChart" width="600" height="280"></canvas></div>
     </section>
 
     <section id="produccion" class="page">
@@ -125,7 +140,7 @@
   let eggHistory = [];
 
   const tabs=[...document.querySelectorAll('.tab')], pages=[...document.querySelectorAll('.page')];
-  tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remove('active'));pages.forEach(p=>p.classList.remove('active'));t.classList.add('active');document.getElementById(t.dataset.page).classList.add('active');if(t.dataset.page==='historial')drawChart();}));
+  tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remove('active'));pages.forEach(p=>p.classList.remove('active'));t.classList.add('active');document.getElementById(t.dataset.page).classList.add('active');if(t.dataset.page==='historial')loadMonthlyHistory();}));
   document.querySelectorAll('.switch').forEach(s=>s.addEventListener('click',()=>{s.classList.toggle('on');}));
   document.getElementById('toggleBajasHistory').addEventListener('click',()=>{const btn=document.getElementById('toggleBajasHistory');const content=document.getElementById('bajasHistoryContent');const open=content.classList.toggle('open');btn.classList.toggle('open',open);btn.setAttribute('aria-expanded',open?'true':'false');});
 
@@ -418,7 +433,87 @@
     };
   }
 
-  function drawChart(){const c=document.getElementById('chart'),ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#e4dfd2';ctx.lineWidth=2;[50,120,190,260].forEach(y=>{ctx.beginPath();ctx.moveTo(25,y);ctx.lineTo(w-20,y);ctx.stroke()});const vals=[24.2,24.8,25.1,25.6,26.4,27.1,28.0,27.5,26.8,26.3,25.9,25.4];ctx.beginPath();vals.forEach((v,i)=>{const x=25+i*(w-55)/(vals.length-1);const y=h-25-(v-23)*28;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.strokeStyle='#516d43';ctx.lineWidth=5;ctx.stroke();}
+  let historyMonth=new Date(localDate()+'T12:00:00');
+  let monthlyProduction=[];
+  let monthlyBajas=[];
+  const historyMonthNames=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  function historyMonthKey(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;}
+  function historyMonthStart(){return `${historyMonth.getFullYear()}-${String(historyMonth.getMonth()+1).padStart(2,'0')}-01`;}
+  function historyNextMonthStart(){const d=new Date(historyMonth.getFullYear(),historyMonth.getMonth()+1,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;}
+  function updateHistoryMonthLabel(){
+    document.getElementById('historyMonthLabel').textContent=`${historyMonthNames[historyMonth.getMonth()]} ${historyMonth.getFullYear()}`;
+    const currentKey=historyMonthKey(new Date(localDate()+'T12:00:00'));
+    document.getElementById('historyNext').disabled=historyMonthKey(historyMonth)>=currentKey;
+  }
+
+  function drawMonthlyLineChart(canvasId,labels,values,options={}){
+    const c=document.getElementById(canvasId); if(!c)return;
+    const ctx=c.getContext('2d'),w=c.width,h=c.height; ctx.clearRect(0,0,w,h);
+    ctx.font='12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif'; ctx.fillStyle='#6d7468';
+    if(!values.length){ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Sin registros en este mes',w/2,h/2);return;}
+    const pad={left:42,right:16,top:22,bottom:34},plotW=w-pad.left-pad.right,plotH=h-pad.top-pad.bottom;
+    let min=Math.min(...values),max=Math.max(...values); if(options.zeroBase)min=0; if(min===max){min=Math.max(0,min-1);max=max+1;}
+    const range=max-min,extra=range*0.12; if(!options.zeroBase){min=Math.max(0,min-extra);max=max+extra;}
+    ctx.strokeStyle='#e4dfd2';ctx.lineWidth=1;ctx.textAlign='right';ctx.textBaseline='middle';
+    for(let i=0;i<=4;i++){const y=pad.top+plotH-(plotH*i/4);ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(w-pad.right,y);ctx.stroke();const val=min+(max-min)*(i/4);ctx.fillText(options.formatY?options.formatY(val):String(Math.round(val)),pad.left-7,y);}
+    const xFor=i=>values.length===1?pad.left+plotW/2:pad.left+(plotW*i/(values.length-1));
+    const yFor=v=>pad.top+plotH-((v-min)/(max-min))*plotH;
+    ctx.strokeStyle=options.lineColor||'#516d43';ctx.lineWidth=3;ctx.lineJoin='round';ctx.lineCap='round';ctx.beginPath();
+    values.forEach((v,i)=>{const x=xFor(i),y=yFor(v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+    ctx.fillStyle=options.lineColor||'#516d43'; values.forEach((v,i)=>{const x=xFor(i),y=yFor(v);ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();});
+    ctx.fillStyle='#6d7468';ctx.textAlign='center';ctx.textBaseline='top';const step=Math.max(1,Math.ceil(labels.length/8));
+    labels.forEach((label,i)=>{if(i%step!==0&&i!==labels.length-1)return;ctx.fillText(label,xFor(i),h-pad.bottom+9);});
+  }
+
+  function drawMonthlyBars(canvasId,labels,values){
+    const c=document.getElementById(canvasId);if(!c)return;const ctx=c.getContext('2d'),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);
+    ctx.font='12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif';ctx.fillStyle='#6d7468';
+    if(!values.length||values.every(v=>v===0)){ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Sin bajas registradas en este mes',w/2,h/2);return;}
+    const pad={left:38,right:16,top:22,bottom:34},plotW=w-pad.left-pad.right,plotH=h-pad.top-pad.bottom,max=Math.max(1,...values);
+    ctx.strokeStyle='#e4dfd2';ctx.lineWidth=1;ctx.textAlign='right';ctx.textBaseline='middle';
+    for(let i=0;i<=4;i++){const y=pad.top+plotH-(plotH*i/4);ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(w-pad.right,y);ctx.stroke();ctx.fillText(String(Math.round(max*i/4)),pad.left-7,y);}
+    const slot=plotW/values.length,barW=Math.max(4,slot*0.58);ctx.fillStyle='#a84c3e';
+    values.forEach((v,i)=>{if(v<=0)return;const x=pad.left+i*slot+(slot-barW)/2,bh=(v/max)*plotH;ctx.fillRect(x,pad.top+plotH-bh,barW,bh);});
+    ctx.fillStyle='#6d7468';ctx.textAlign='center';ctx.textBaseline='top';const step=Math.max(1,Math.ceil(labels.length/8));
+    labels.forEach((label,i)=>{if(i%step!==0&&i!==labels.length-1)return;ctx.fillText(label,pad.left+i*slot+slot/2,h-pad.bottom+9);});
+  }
+
+  async function loadMonthlyHistory(){
+    updateHistoryMonthLabel();const status=document.getElementById('historyStatusMonthly');status.textContent='Consultando datos del mes…';
+    try{
+      const start=historyMonthStart(),end=historyNextMonthStart();
+      const [prodRes,bajaRes,prevRes]=await Promise.all([
+        supabaseClient.from('Producción').select('fecha,huevos,gallinas,porcentaje_postura').gte('fecha',start).lt('fecha',end).order('fecha',{ascending:true}),
+        supabaseClient.from('Bajas').select('fecha,bajas_totales').gte('fecha',start).lt('fecha',end).order('fecha',{ascending:true}),
+        supabaseClient.from('Bajas').select('fecha,bajas_totales').lt('fecha',start).order('fecha',{ascending:false}).limit(1)
+      ]);
+      if(prodRes.error)throw prodRes.error;if(bajaRes.error)throw bajaRes.error;if(prevRes.error)throw prevRes.error;
+      monthlyProduction=prodRes.data||[];monthlyBajas=bajaRes.data||[];
+      const previousTotal=prevRes.data&&prevRes.data.length?Number(prevRes.data[0].bajas_totales)||0:0;
+      const labels=monthlyProduction.map(x=>String(Number(x.fecha.slice(8,10)))),eggs=monthlyProduction.map(x=>Number(x.huevos)||0),rates=monthlyProduction.map(x=>Number(x.porcentaje_postura)||0);
+      const totalEggs=eggs.reduce((a,b)=>a+b,0),avgRate=rates.length?rates.reduce((a,b)=>a+b,0)/rates.length:0;
+      const bajaLabels=monthlyBajas.map(x=>String(Number(x.fecha.slice(8,10))));let prior=previousTotal;
+      const monthlyDeaths=monthlyBajas.map(x=>{const current=Number(x.bajas_totales)||0;const diff=Math.max(0,current-prior);prior=Math.max(prior,current);return diff;});
+      const deaths=monthlyDeaths.reduce((a,b)=>a+b,0);
+      document.getElementById('monthTotalEggs').textContent=totalEggs;
+      document.getElementById('monthEggDays').textContent=`${monthlyProduction.length} ${monthlyProduction.length===1?'día':'días'} registrados`;
+      document.getElementById('monthAvgRate').textContent=`${avgRate.toFixed(1)} %`;
+      document.getElementById('monthDeaths').textContent=deaths;
+      document.getElementById('monthCurrentFlock').textContent=currentFlockSize;
+      status.textContent=monthlyProduction.length||monthlyBajas.length?'Datos actualizados desde Supabase.':'No hay registros en este mes.';
+      drawMonthlyLineChart('monthlyEggChart',labels,eggs,{formatY:v=>String(Math.round(v)),lineColor:'#516d43',zeroBase:true});
+      drawMonthlyLineChart('monthlyRateChart',labels,rates,{formatY:v=>`${Math.round(v)}%`,lineColor:'#6b7f3d'});
+      drawMonthlyBars('monthlyBajaChart',bajaLabels,monthlyDeaths);
+    }catch(error){
+      console.error('Monthly history error:',error);status.textContent='No se pudo consultar el historial mensual.';
+      document.getElementById('monthTotalEggs').textContent='—';document.getElementById('monthEggDays').textContent='';document.getElementById('monthAvgRate').textContent='—';document.getElementById('monthDeaths').textContent='—';document.getElementById('monthCurrentFlock').textContent=currentFlockSize;
+      drawMonthlyLineChart('monthlyEggChart',[],[]);drawMonthlyLineChart('monthlyRateChart',[],[]);drawMonthlyBars('monthlyBajaChart',[],[]);
+    }
+  }
+
+  document.getElementById('historyPrev').addEventListener('click',()=>{historyMonth=new Date(historyMonth.getFullYear(),historyMonth.getMonth()-1,1);loadMonthlyHistory();});
+  document.getElementById('historyNext').addEventListener('click',()=>{const current=new Date(localDate()+'T12:00:00'),next=new Date(historyMonth.getFullYear(),historyMonth.getMonth()+1,1);if(next<=new Date(current.getFullYear(),current.getMonth(),1)){historyMonth=next;loadMonthlyHistory();}});
 
   loadBajas().then(()=>loadProduction());
   if('serviceWorker' in navigator){

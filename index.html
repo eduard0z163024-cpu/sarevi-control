@@ -299,7 +299,7 @@
 
   loadProduction();
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').then(registration=>setupNotifications(registration)).catch(error=>{
+    navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(registration=>setupNotifications(registration)).catch(error=>{
       console.error('Service worker error:',error);
       document.getElementById('notifyMessage').textContent='No se pudo preparar el servicio de notificaciones.';
     });
